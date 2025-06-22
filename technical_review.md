@@ -1,195 +1,248 @@
 # 🧠 Chatbot Arena and Prompt-to-Leaderboard (P2L): A Comprehensive Technical Review
 
+**Author:** Jiaxin Zhang  
+*Last Updated: June 2025*
+
+---
+
+## 📚 Table of Contents
+
+- [📌 Overview](#-overview)
+- [🥊 Part I: Chatbot Arena – Evaluating with Human Preferences](#-part-i-chatbot-arena--evaluating-with-human-preferences)
+  - [🎯 What is Chatbot Arena?](#-what-is-chatbot-arena)
+  - [🔧 Evaluation Workflow](#-evaluation-workflow)
+  - [📊 Data Snapshot](#-data-snapshot)
+  - [📐 Bradley–Terry Model](#-bradleyterry-model)
+  - [🆚 BT vs Elo](#-bt-vs-elo)
+  - [🔮 Future Directions](#-future-directions)
+
+- [🧾 Part II: Prompt-to-Leaderboard (P2L) – Personalized Rankings](#-part-ii-prompt-to-leaderboard-p2l--personalized-rankings)
+  - [🎯 Importance of P2L](#-importance-of-p2l)
+  - [🧱 Architecture Overview](#-architecture-overview)
+  - [🔍 Pipeline Construction](#-pipeline-construction)
+  - [📤 Routing Decision Logic](#-routing-decision-logic)
+  - [📏 Results Summary](#-results-summary)
+  - [📊 P2L Evaluation Metrics](#-p2l-evaluation-metrics)
+  - [💡 Applications](#-applications)
+
+- [🔗 Additional Resources](#-additional-resources)
+  
+---
+
 ## 📌 Overview
 
-The explosive growth of Large Language Models (LLMs) such as GPT-4, Claude, and Gemini has created a pressing demand for **scalable, human-aligned evaluation**. How can we compare models beyond synthetic benchmarks or fixed-choice tests? How can we **rank models based on real-world usage**?
+Large Language Models (LLMs), such as GPT-4, Claude, and Gemini, are rapidly advancing. However, evaluating them with human-aligned and scalable frameworks remains an open challenge. LMSYS addresses this with:
 
-To address these challenges, **Chatbot Arena** and **Prompt-to-Leaderboard (P2L)** were introduced by LMSYS Org in 2024–2025. Together, they offer:
-
-- A **massive-scale, crowd-sourced evaluation framework**.
-- A method to **learn prompt-aware model rankings** from human preferences.
-- An ensemble routing system that often **outperforms individual models**.
-
-This document presents a complete, technically precise summary of both systems, based on official papers, internal slides, and experiments.
+- **Chatbot Arena** – A crowdsourced preference-based evaluation platform.
+- **Prompt-to-Leaderboard (P2L)** – A system to route prompts to the best model and generate personalized leaderboards.
 
 ---
 
-## 🏟️ Part I: Chatbot Arena – Human Preference at Scale
+## 🥊 Part I: Chatbot Arena – Evaluating with Human Preferences
 
-### 🎯 Goal
+### 🎯 What is Chatbot Arena?
 
-Provide a **robust, scalable, and model-agnostic platform** to collect pairwise human preferences across a wide variety of prompts and domains.
+Chatbot Arena is a **scalable, model-agnostic, and preference-based evaluation** system. It crowdsources real human judgments via anonymous model pair comparisons, simulating real-world user experience.
 
-### 🔧 How It Works
+---
 
-- Users interact with two anonymized LLMs simultaneously (Model A and B).
-- The same prompt is submitted to both models.
-- Users view both responses and vote for the preferred one.
-- Models are **shuffled and masked** to avoid bias.
+### 🔧 Evaluation Workflow
 
-### 📊 Why This Matters
+1. Users submit a prompt.
+2. Two models (Model A and B) generate answers anonymously.
+3. Users compare responses and vote for the better one.
+4. Models are shuffled to avoid bias.
+5. Votes are logged for statistical ranking.
 
-Unlike scripted benchmarks, Arena captures **real-world subjective preferences**:
-- Open-ended reasoning
-- Coding explanations
-- Math problem solving
-- Summarization and dialogue quality
+---
 
-### 📐 Bradley–Terry Ranking Model
+### 📊 Data Snapshot
 
-To aggregate pairwise win-loss outcomes, Arena fits a **Bradley–Terry model**:
+| Metric           | Value        |
+|------------------|--------------|
+| Total Votes      | 2.8M+        |
+| Unique Prompts   | 300,000+     |
+| Models Compared  | 219+         |
+| Domains          | Math, Code, Dialogue, Reasoning, Writing |
 
-\[
-P(i \succ j) = \frac{e^{\theta_i}}{e^{\theta_i} + e^{\theta_j}}
-\]
+---
+
+### 📐 Bradley–Terry Model
+
+Arena uses the **Bradley–Terry (BT)** model to infer global rankings from pairwise human preferences.
+
+#### Probability a model \( i \) wins over model \( j \):
+
+```
+P(i > j) = 1 / (1 + exp(ξ_j - ξ_i))
+```
+
+Where \( ξ_i \) is the skill score of model \( i \).
+
+#### Likelihood Function:
+
+```
+L(ξ) = Σ_{i≠j} n_ij * log(1 / (1 + exp(ξ_j - ξ_i)))
+```
+
+- \( n_{ij} \): number of times \( i \) beats \( j \)
+- Solved via Maximum Likelihood Estimation (MLE)
+
+---
+
+### 🆚 BT vs Elo
+
+| Feature             | Bradley–Terry (BT)     | Elo                      |
+|---------------------|-------------------------|---------------------------|
+| Data Requirements   | Sparse, asymmetric      | Repeated symmetric games |
+| Stability           | High (MLE-based)        | Medium (Online updates)  |
+| Transitive Inference| Yes                     | Limited                  |
+| Use Case Fit        | Arena (LLM outputs)     | Chess, Go, etc.          |
+
+**Bottom line**: BT better captures LLM evaluation complexities.
+
+---
+
+
+
+## 🔮 Future Directions
+
+As the Arena and P2L systems mature, several promising directions are emerging to improve personalization, fairness, and adaptability:
+
+- **Cluster-Aware BT Models:**  
+  Adapt the Bradley–Terry model to account for clusters of users with distinct preferences, allowing more nuanced inference.
+
+- **User-Customized Leaderboards:**  
+  Generate leaderboard views tailored to individual or grouped user behavior, preferences, and task domains.
+
+- **Preference-Aligned Deployments:**  
+  Deploy LLMs that dynamically adapt to user intent — factual, creative, empathetic — by routing requests to the most aligned model.
+
+These innovations pave the way for truly user-centric and interpretable AI evaluation.
+
+
+## 🧾 Part II: Prompt-to-Leaderboard (P2L) – Personalized Rankings
+
+### 🎯 Importance of P2L
+
+Different models shine in different areas:
+
+- GPT-4: Mathematics
+- Claude-3: Logical Reasoning
+- Gemini: Multimodal tasks
+
+**Goal**: Route prompts to the optimal model and build dynamic rankings.
+
+---
+
+### 🧱 Architecture Overview
+
+**Input**: Prompt \( Z \), Model Encoding \( X \) (-1 for A, +1 for B)\
+**Output**: Preference label \( Y \in \{0, 1\} \)
+
+- Use LoRA-tuned LLMs (e.g., Qwen2.5-1.5B)
+- Train to predict preference probability via sigmoid head
+
+```
+ŷ = σ(Xᵀ θ̂(Z))
+```
+
+---
+
+### 🔍 Pipeline Construction
+
+#### 1. Data
+
+- Arena-55K samples
+- Format: (Prompt, Model A, Model B, Vote)
+
+#### 2. Training
+
+- Binary Cross-Entropy Loss:
+```
+L = - y * log(ŷ) - (1 - y) * log(1 - ŷ)
+```
+
+- Batch size: 4
+- Max seq length: 4096
+- Optimizer: Adam
+- LR: 1e-5 ~ 5e-5
+
+#### 3. Inference
+
+- For prompt \( Z \), predict preference between any two models \( (i, j) \)
+- Construct matrix of pairwise win probabilities
+
+---
+
+### 📤 Routing Decision Logic
+
+- Compute optimal mixed strategy \( \pi^* \in \Delta_M \)
+
+```
+π* = argmax_π Σ_{i,j} π_i * P(i > j) * q_j
+```
 
 Where:
-- \( \theta_i \) is the skill score of model \( i \)
-- Higher \( \theta \Rightarrow \) stronger model
+- \( π \): model deployment probabilities
+- \( q_j \): weights for model \( j \)
 
-> This allows LMSYS to produce a **global leaderboard** from noisy, partial comparisons.
-
-### 📌 Arena Dataset Stats (as of 2025)
-
-| Metric | Value |
-|--------|-------|
-| Total Votes | ~550,000 |
-| Unique Prompts | ~300,000 |
-| Unique Models | 40+ |
-| Domains | Math, Code, Dialogue, Reasoning, Writing |
-
-### 💡 Observations
-
-- Certain models consistently dominate others (e.g. GPT-4 > GPT-3.5).
-- Human voting is **stable** and **reproducible** over time.
-- Arena captures **emergent model behavior** (e.g. chain-of-thought reasoning, hallucination avoidance).
+**Algorithms**:
+- Borda Count
+- Expected Rank Minimization
+- Plackett–Luce Sampling
 
 ---
 
-## 🚀 Part II: Prompt-to-Leaderboard (P2L) – Learning to Route
+### 📊 P2L Evaluation Metrics
 
-### 🎯 Motivation
-
-Arena yields **global rankings**, but what about **prompt-specific** decisions?
-
-Example:
-- Claude-3 might be better at **reasoning** prompts
-- GPT-4 might be stronger on **math**
-- Gemini might excel at **multimodal inputs**
-
-Hence the goal of P2L:
-
-> **Learn a model that maps prompts to the best-performing LLM.**
-
-### 🔍 Core Idea
-
-Train a preference model on Arena data, then use it to **rank or route** prompts to the best LLM.
+- **Local Accuracy**: Binary correctness on pairwise vote prediction
+- **Log Loss**: Model confidence calibration
+- **Top-k Precision**: Ranking accuracy at leaderboard head
+- **Kendall’s τ / Spearman’s ρ**: Rank correlation with ground truth
+- **Spread**: Variation in P2L score across prompts (used to filter ambiguous queries)
 
 ---
 
-## 🛠️ P2L Architecture
+### 📏 Results Summary
 
-### 1. **Preference Model** (Prompt → Pairwise win probability)
-
-- Input: Full prompt + model outputs (A vs B)
-- Output: Probability that A wins over B
-- Architecture: Qwen2.5-1.5B or RoBERTa with classification head
-- Loss: Binary cross-entropy
-
-\[
-\mathcal{L} = - y \log p - (1 - y)\log(1 - p)
-\]
-
-Where \( y \in \{0,1\} \) is the Arena label.
-
-### 2. **Router** (Prompt → Best Model)
-
-Given a prompt:
-- Predict pairwise win rates \( P(i \succ j) \)
-- Use one of:
-  - **Borda count**: Sum of win probabilities
-  - **Plackett–Luce sampling**: Sample rankings from probability simplex
-  - **Expected rank minimization**: Choose \( i \) minimizing \( \sum_j P(j \succ i) \)
+| Task Domain        | Best Individual Model | P2L Routed Accuracy |
+|--------------------|------------------------|----------------------|
+| General Tasks      | GPT-4                  | 76.7%                |
+| Mathematics        | GPT-4                  | 78.3%                |
+| Programming        | Claude-3               | 81.2%                |
+| Logical Reasoning  | GPT-4                  | 75.5%                |
 
 ---
 
-## 🧪 Training Details
+### 💡 Applications
 
-| Item | Detail |
-|------|--------|
-| Dataset | Arena-55K preferences |
-| Model | Qwen2.5-1.5B (LoRA finetuned) |
-| Input Format | `<Prompt>\n\nModel A Response\n\nModel B Response` |
-| Batch Size | 4 |
-| Max Length | 4096 tokens |
-| Router Strategy | Top-1 with rank estimation |
+Prompt-level evaluation enables fine-grained control, diagnostic power, and personalization across LLM workflows. Below are major application areas:
 
+- 🔁 **Optimal Routing**  
+  Use per-prompt scores to automatically select the best model for each input.  
+  - Dynamically dispatch prompts based on past performance.  
+  - Power ensemble systems where different models specialize in different tasks.  
+  - Improve multi-agent frameworks and chat systems through adaptive routing.  
+
+- 👤 **Personalized Evaluation**  
+  Build custom rankings based on individual user preferences and behaviors.  
+  - Track user-specific feedback across prompt types.  
+  - Enable user profiles that evolve with usage.  
+  - Prioritize models that align with a user’s domain (e.g., legal, technical, creative).  
+
+- 🩺 **Automated Diagnosis**  
+  Analyze model performance on specific prompt types or domains to find where it struggles (blind spots) and where it excels (strengths). 
+  - Detect patterns of failure (e.g., hallucination, inconsistency).  
+  - Visualize model performance heatmaps across topics or difficulty.  
+  - Inform targeted fine-tuning and data augmentation strategies.  
 ---
 
-## 📈 Experimental Results
+## 🔗 Additional Resources
 
-### Prompt-Aware Routing Performance
-
-| Domain        | Best Model | Router Win Rate |
-|---------------|------------|-----------------|
-| MT-Bench (overall) | GPT-4     | 76.7%           |
-| Math           | GPT-4     | 78.3%           |
-| Coding         | Claude-3  | 81.2%           |
-| Reasoning      | GPT-4     | 75.5%           |
-
-→ **P2L outperforms all individual models** by adapting to the prompt type.
-
----
-
-## 📚 Prompt-Aware Leaderboards
-
-P2L enables **per-prompt ranking** of LLMs. This allows:
-
-- Fine-grained model analysis
-- Smart prompt-routing in ensemble systems
-- Adaptive evaluation metrics (e.g. reward model validation)
-
-> Example: Instead of asking "Which model is better?", we ask **"Which model is better for this prompt?"**
-
----
-## 🤖 Real-World Applications 
-
-### 🔀 Prompt Routing for LLM APIs
-Use P2L to route prompts to the best-performing model (e.g., GPT-4 for math, Claude for writing). This improves quality and reduces cost in real-time systems like chatbots or coding assistants.
-
-### 🧪 Evaluation for LLM Development
-Arena + P2L gives scalable, human-preference-based evaluation. Ideal for:
-- Reward model training
-- Fine-tuning validation
-- Failure mode analysis
-
-### 🎯 Ensemble Model Deployment
-Deploy a router that selects between multiple models per prompt. This can outperform any individual model across diverse user queries.
-
-### 🏫 Intelligent Tutoring
-In educational apps, route student questions to the most competent LLM by subject. Improve answer reliability and detect hallucination-prone areas.
-
-### 🔄 Continuous Improvement
-Update routers with new Arena votes over time. Enables self-updating systems that adapt to model changes and new releases.
-
-### 🧩 Model Debugging
-Use prompt-level win/loss patterns to diagnose performance drops or regression bugs after updates.
-
-### 📦 LLM-as-a-Service Enhancements
-Vendors can offer smarter routing, transparent analytics, and task-specific benchmarking using P2L outputs.
-
-### 📚 Benchmark Curation
-Select high-signal prompts or construct focused challenge sets (e.g., logic-heavy or long-context prompts) from Arena win-rates.
-
-
-## Links
-
-- 📘 [Chatbot Arena Paper](https://arxiv.org/abs/2405.06174)
-- 📘 [P2L Paper](https://arxiv.org/abs/2405.11351)
+- 📘 [Chatbot Arena Paper](https://arxiv.org/abs/2403.04132)
+- 📘 [P2L Paper](https://arxiv.org/abs/2502.14855)
 - 🧠 [Chatbot Arena Website](https://chat.lmsys.org/)
-- 📑 [P2L Slides (PDF)](./p2l_slides.pdf)
+- 📂 [P2L GitHub](https://github.com/lmarena/p2l)
+- 📑 [P2L Slides](./p2l_slides.pdf)
 
----
-
-*Author: Jiaxin Zhang*  
-*Last Updated: June 2025*
