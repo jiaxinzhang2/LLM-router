@@ -71,24 +71,33 @@ Chatbot Arena is a **scalable, model-agnostic, and preference-based evaluation**
 
 Arena uses the **Bradley–Terry (BT)** model to infer global rankings from pairwise human preferences.
 
-#### Probability a model \( i \) wins over model \( j \):
+#### 📐 Bradley–Terry Model
 
-```
-P(i > j) = 1 / (1 + exp(ξ_j - ξ_i))
-```
+The Bradley–Terry (BT) model estimates a global ranking from pairwise human preferences.
 
-Where \( ξ_i \) is the skill score of model \( i \).
+##### Probability Model
 
-#### Likelihood Function:
+Given two models $i$ and $j$, the probability that model $i$ is preferred over model $j$ is:
 
-```
-L(ξ) = Σ_{i≠j} n_ij * log(1 / (1 + exp(ξ_j - ξ_i)))
-```
+$$
+P(i > j) = \frac{1}{1 + \exp(\xi_j - \xi_i)}
+$$
 
-- \( n_{ij} \): number of times \( i \) beats \( j \)
-- Solved via Maximum Likelihood Estimation (MLE)
+where $\xi_i$ and $\xi_j$ are the latent skill scores associated with models $i$ and $j$, respectively.
 
----
+##### Likelihood Function
+
+The total log-likelihood over all pairwise comparisons is:
+
+$$
+\mathcal{L}(\xi) = \sum_{i \ne j} n_{ij} \cdot \log \left( \frac{1}{1 + \exp(\xi_j - \xi_i)} \right)
+$$
+
+- $n_{ij}$ : the number of times model $i$ beats model $j$ 
+- Parameters $\xi$ are estimated via **Maximum Likelihood Estimation (MLE)**
+
+This framework enables robust estimation of model rankings even in the presence of sparse or asymmetric comparison data.
+
 
 ### 🆚 BT vs Elo
 
@@ -125,27 +134,39 @@ These innovations pave the way for truly user-centric and interpretable AI evalu
 
 ### 🎯 Importance of P2L
 
-Different models shine in different areas:
+Different LLMs excel in different areas, making **prompt-specific evaluation and routing** critical:
 
-- GPT-4: Mathematics
-- Claude-3: Logical Reasoning
-- Gemini: Multimodal tasks
+- **GPT-4**: Strong in mathematics and symbolic reasoning  
+- **Claude-3**: Excels at logical reasoning and subtle alignment tasks  
+- **Gemini**: Performs best on multimodal and vision-related prompts  
 
-**Goal**: Route prompts to the optimal model and build dynamic rankings.
+**Goal**:  
+Leverage prompt-level evaluation to:
+- Dynamically **route each prompt to the most suitable model**  
+- Construct **personalized, domain-aware rankings**  
+- Improve overall system performance beyond what any single model can offer  
 
 ---
 
 ### 🧱 Architecture Overview
 
-**Input**: Prompt \( Z \), Model Encoding \( X \) (-1 for A, +1 for B)\
-**Output**: Preference label \( Y \in \{0, 1\} \)
+The Prompt-to-Leaderboard (P2L) architecture is designed to learn user-aligned model preferences.
+
+**Input**:
+- Prompt $Z$
+- Model encoding vector $X \in \{-1, +1\}$, where -1 represents Model A and +1 represents Model B
+
+**Output**:
+- Preference label $Y \in \{0, 1\}$, indicating which model the human preferred
+
+Model predicts preference probability $\hat{y}$ via a **sigmoid head** on an LLM embedding of the prompt:
+
+$$
+\hat{y} = \sigma \left( X^\top \hat{\theta}(Z) \right)
+$$
 
 - Use LoRA-tuned LLMs (e.g., Qwen2.5-1.5B)
-- Train to predict preference probability via sigmoid head
-
-```
-ŷ = σ(Xᵀ θ̂(Z))
-```
+- Train only the final preference head on top of the frozen LLM encoder
 
 ---
 
@@ -153,46 +174,73 @@ Different models shine in different areas:
 
 #### 1. Data
 
-- Arena-55K samples
-- Format: (Prompt, Model A, Model B, Vote)
+- Source: **Arena-55K** dataset  
+- Format: $(Z, A(Z), B(Z), Y)$, where:
+  - $Z$: Prompt  
+  - $A(Z), B(Z)$: Model A and B responses  
+  - $Y$: Human preference label
 
 #### 2. Training
 
-- Binary Cross-Entropy Loss:
-```
-L = - y * log(ŷ) - (1 - y) * log(1 - ŷ)
-```
+- Loss function: **Binary Cross-Entropy**
 
-- Batch size: 4
-- Max seq length: 4096
-- Optimizer: Adam
-- LR: 1e-5 ~ 5e-5
+$$
+\mathcal{L} = - y \log(\hat{y}) - (1 - y) \log(1 - \hat{y})
+$$
+
+- Hyperparameters:
+  - Batch size: 4  
+  - Max sequence length: 4096  
+  - Optimizer: Adam  
+  - Learning rate: $1 \times 10^{-5} \sim 5 \times 10^{-5}$  
 
 #### 3. Inference
 
-- For prompt \( Z \), predict preference between any two models \( (i, j) \)
-- Construct matrix of pairwise win probabilities
+- For a new prompt $Z$, the model predicts preference probabilities for any pair of models $(i, j)$  
+- Construct a **pairwise win probability matrix**:
+
+$$
+P_{i > j}(Z) = \Pr(\text{Model } i \text{ preferred over } j \mid Z)
+$$
 
 ---
 
 ### 📤 Routing Decision Logic
 
-- Compute optimal mixed strategy \( \pi^* \in \Delta_M \)
+Use the predicted pairwise preference matrix to **compute the optimal routing strategy**.
 
-```
-π* = argmax_π Σ_{i,j} π_i * P(i > j) * q_j
-```
+Goal:  
+Find the optimal **mixed strategy** $\pi^* \in \Delta_M$ (a distribution over $M$ models):
+
+$$
+\pi^* = \arg\max_{\pi \in \Delta_M} \sum_{i, j} \pi_i \cdot P(i > j) \cdot q_j
+$$
 
 Where:
-- \( π \): model deployment probabilities
-- \( q_j \): weights for model \( j \)
-
-**Algorithms**:
-- Borda Count
-- Expected Rank Minimization
-- Plackett–Luce Sampling
+- $\pi_i$: probability of routing to model $i$  
+- $P(i > j)$: model $i$'s win rate over model $j$ on prompt $Z$  
+- $q_j$: importance or prior weight for model $j$
 
 ---
+
+### 🔢 Algorithms for Computing $\pi^*$
+
+| **Component**               | **Description**                                                                                                                                                               |
+|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Inputs**                 | - $q$: Model weight vector  <br> - $W^\ast$: Pairwise win-rate matrix  <br> - $\theta^\ast(z)_j$: BT score of model $j$ on prompt $z$  <br> - $c$: Per-model cost vector  <br> - $C$: Total cost budget |
+| **Optimization Objective** | Solve the linear program to compute the optimal routing distribution:  <br>  $\tilde{\pi}^\ast = \arg\max_{\tilde{\pi} \in \Delta_M,\ \tilde{\pi}^\top c \leq C} \tilde{\pi}^\top W^\ast q$ |
+| **Reward Computation**     | Compute the expected reward for the optimal routing:  <br> $R^\ast = \tilde{\pi}^{\ast\top} W^\ast q$ |
+| **BT Score Estimation**    | Estimate the router’s equivalent BT score $\theta'$ by solving:  <br> $\sum_a q_a \cdot \sigma(\theta' - \theta^\ast(z)_a) = R^\ast$  <br> where $\sigma(x) = \frac{1}{1 + e^{-x}}$ is the sigmoid function |
+| **Outputs**                | - $\tilde{\pi}^\ast$: Optimal routing distribution  <br> - $\theta'$: Estimated BT score for the router |
+
+
+---
+
+
+These algorithms allow for **optimal prompt-to-model assignment** in real-time, balancing accuracy, diversity, and user satisfaction.
+
+---
+
 
 ### 📊 P2L Evaluation Metrics
 
