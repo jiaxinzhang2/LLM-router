@@ -1,8 +1,4 @@
 # Chatbot Arena and Prompt-to-Leaderboard (P2L): A Comprehensive Technical Review
-
-**Author:** Jiaxin Zhang  
-*Last Updated: June 2025*
-
 ---
 
 ##  How Do We Really Know Which LLM Is Best?
