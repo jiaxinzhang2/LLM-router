@@ -1,6 +1,5 @@
 # Chatbot Arena and Prompt-to-Leaderboard (P2L): A Comprehensive Technical Review
 ---
-
 ##  How Do We Really Know Which LLM Is Best?
 
 Large Language Models (LLMs) like GPT-4, Claude, and Gemini are improving at breakneck speed. They solve math problems, write essays, generate code, translate languages, and even explain jokes. But beneath all this excitement lies a subtle, unresolved question: how do we meaningfully compare them?
