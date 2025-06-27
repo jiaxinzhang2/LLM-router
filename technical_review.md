@@ -1,5 +1,5 @@
 # Chatbot Arena and Prompt-to-Leaderboard (P2L): A Comprehensive Technical Review
----
+
 ##  How Do We Really Know Which LLM Is Best?
 
 Large Language Models (LLMs) like GPT-4, Claude, and Gemini are improving at breakneck speed. They solve math problems, write essays, generate code, translate languages, and even explain jokes. But beneath all this excitement lies a subtle, unresolved question: how do we meaningfully compare them?
@@ -10,7 +10,6 @@ Most interactions with LLMs are open-ended. There’s often no single correct an
 
 This shift — from benchmarks to human preference — is where the LMSYS team has made a real breakthrough. They've built two complementary systems: Chatbot Arena, which collects large-scale human comparisons of model outputs, and Prompt-to-Leaderboard (P2L), a routing and evaluation framework that learns from those comparisons to match prompts with the best-fitting models.
 
----
 
 ## A New Approach to Model Evaluation: Chatbot Arena
 
@@ -29,7 +28,6 @@ Over time, this approach has scaled remarkably well:
 
 This volume of data not only makes Chatbot Arena one of the largest open evaluation datasets for LLMs, but also one of the most aligned with real human preferences.
 
----
 
 ## Turning Votes into Insight: The Bradley–Terry Model
 
@@ -49,51 +47,26 @@ What makes BT especially suited for Chatbot Arena is its ability to work with sp
 
 This is a major advantage over systems like Elo rating, which assume symmetric and repeated pairings — more suitable for competitive games, less so for open-ended model comparisons.
 
----
 
-## Moving Beyond Global Rankings: Introducing P2L
+## Moving Beyond Global Rankings: Why We Need P2L
 
-While global rankings are useful — everyone loves a leaderboard — they’re ultimately limited. Not all prompts are created equal, and not all users want the same things from a model.
+Global leaderboards are useful — they give us a big-picture view of which LLMs are generally preferred. But they miss a crucial point: **not all prompts are created equal**, and **not all users care about the same things**.
 
-A model that excels at writing fiction might be poor at solving math problems. A model that’s great for technical explanations may be too dry for casual conversation. Even among users, preferences differ: one person might prefer concise answers; another values detailed, structured explanations.
+A model that writes brilliant fiction might struggle with math. Another might offer sharp technical explanations but sound too dry for casual conversation. Even among users, preferences vary — some value creativity, others prioritize clarity or structure.
 
-Prompt-to-Leaderboard (P2L) is LMSYS’s answer to this problem. It builds on the Arena’s voting data to create prompt-aware, context-sensitive evaluation.
+Imagine two people interacting with the same LLM interface: one is a developer looking for precise bug explanations; the other wants a whimsical bedtime story. Clearly, they need very different things from the system. A single global ranking won't help decide which model to use — what matters is **which model performs best for a given prompt**.
 
-The idea is this: based on past prompt-vote history, P2L learns to route a new prompt to the model that has performed best on similar prompts in the past. It doesn’t try to find one model to rule them all. Instead, it builds a personalized routing system, tailored to different prompt types or user preferences.
+That’s where **Prompt-to-Leaderboard (P2L)** comes in.
 
-This is a major step forward. It shifts the question from “which model is best?” to “which model is best for this kind of prompt?” — a much more relevant question for real-world applications.
+P2L learns from Arena’s large-scale human preference data to route each prompt to the model that’s historically performed best on similar tasks. It doesn’t try to find one model to rule them all. Instead, it builds a **context-aware, task-sensitive routing system** that’s personalized and adaptive.
 
----
+It’s a simple but powerful shift:  
+From “Which model is best overall?”  
+To “Which model is best **for this prompt**?”
 
-## Prompt-to-Leaderboard (P2L) — From Global Scores to Personalized Rankings
+By moving beyond static rankings to **dynamic, real-time routing**, P2L makes LLM evaluation and deployment more efficient, more human-aligned — and more useful in practice.
 
-When evaluating large language models (LLMs), a single global leaderboard score only tells part of the story. In reality, **different models shine in different areas**:
-
-- **GPT-4** dominates mathematics and symbolic reasoning.
-- **Claude-3** stands out in logical reasoning and fine-grained alignment.
-- **Gemini** excels in multimodal and visual tasks.
-
-But if no one model is best at everything, then a natural question follows:  
-**Why treat all prompts the same when routing them to models?**
-
-That’s the insight behind **Prompt-to-Leaderboard (P2L)** — a framework that moves beyond one-size-fits-all ranking by learning to match **each prompt to the most suitable model**. The result is a system that’s more personalized, more dynamic, and ultimately more useful.
-
----
-
-### Why Prompt-Level Routing Matters
-
-Imagine two users:
-
-- One is a developer seeking precise bug explanations.  
-- The other wants a whimsical bedtime story for their child.
-
-Both ask for help — but clearly, **they need different things** from the same LLM interface. P2L recognizes that prompt content, user intent, and even model costs matter. Instead of selecting the globally top-ranked model every time, P2L uses learned preferences to **route each prompt to the best-performing model for that task**.
-
-This leads to a more efficient and human-aligned system — one that’s capable of **adapting** in real-time.
-
----
-
-### How It Works: A Peek into P2L’s Architecture
+## How It Works: A Peek into P2L’s Architecture
 
 At its core, P2L learns from **Arena-55K**, a large dataset of pairwise human preference votes over LLM responses to diverse prompts.
 
@@ -116,9 +89,8 @@ $$
 
 Only the preference head is trained — the underlying LLM remains untouched. This setup ensures efficiency and modularity.
 
----
 
-### From Preferences to Predictions: Training the Router
+## From Preferences to Predictions: Training the P2L
 
 To train the model, P2L minimizes a standard **binary cross-entropy loss**:
 
@@ -134,40 +106,33 @@ $$
 
 This results in a **pairwise win matrix** for the prompt — a fine-grained view of which models are more suitable, **conditioned on the prompt itself**.
 
----
 
-### Making the Best Call: How to Route Intelligently
+## Making the Best Call: How to Route Intelligently
 
-Given the win matrix, how do we choose the model to use?
+In practice, intelligent routing must account for both model performance and cost.
 
 P2L formulates an **optimization problem**:  
-Find a distribution $\pi^{\ast}$ over all models that **maximizes expected reward**, taking into account:
-
-- Win probabilities  
-- Model usage costs  
-- Model importance weights
+Find a distribution $\pi^{\ast}$ over all models that **maximizes expected reward**, subject to a total cost constraint.
 
 Formally:
 
 $$
-\pi^\ast = \arg\max_{\pi \in \Delta_M} \sum_{i, j} \pi_i \cdot P(i > j) \cdot q_j
+\pi^\ast = \arg\max_{\pi \in \Delta_M,\ \pi^\top c \leq C} \sum_{i, j} \pi_i \cdot P(i > j) \cdot q_j
 $$
 
-This lets P2L route to a **single best model**, or even **stochastically sample** from a set of models when diversity is valuable.
+Where:
 
-The optimization also enables **budget-aware routing**: if some models are more expensive or rate-limited, the system can still allocate traffic efficiently.
+- $\pi_i$: probability of routing to model $i$  
+- $P(i > j)$: probability that model $i$ outperforms model $j$ on the given prompt  
+- $q_j$: importance weight of model $j$ (typically uniform)  
+- $c_i$: usage cost of model $i$  
+- $C$: total budget  
+- $\Delta_M$: the set of valid probability distributions over $M$ models
 
----
+This lets P2L make **budget-aware routing decisions** — leveraging powerful models when they matter most, and allocating traffic efficiently under resource constraints.
 
-### The Road Ahead
 
-In future iterations, P2L could evolve to incorporate:
 
-- **User preference history**  
-- **Prompt clustering and retrieval**  
-- **Real-time feedback loops for continuous improvement**
-
-The broader implication is clear: evaluation is no longer about finding the single best model. It's about **finding the best model for each person, at each moment, for each task**. And that’s a much smarter way to use AI.
 
 ##  Additional Resources
 
