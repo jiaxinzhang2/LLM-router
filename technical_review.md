@@ -68,44 +68,58 @@ By moving beyond static rankings to **dynamic, real-time routing**, P2L makes LL
 
 ## How It Works: A Peek into P2L’s Architecture
 
-At its core, P2L learns from **Arena-55K**, a large dataset of pairwise human preference votes over LLM responses to diverse prompts.
+At the heart of **Prompt-to-Leaderboard (P2L)** is a simple but powerful idea: instead of assigning global rankings to language models, we learn **prompt-specific preferences** based on large-scale human feedback from Arena dataset.
 
-Each data point includes:
+Each data point in Arena dataset contains:
 
-- A **prompt** $Z$  
-- A **label** $Y \in \\{0,1\\}$ indicating which model was preferred
+- A **natural language prompt**  $Z$
+- Two models: model $A$ and model $B$, selected from a pool of \( M \) models and presented in a fixed order
+- Their respective responses to the prompt
+- A **binary label** $Y \in \\{0, 1\\}$, where:
+  - $Y = 0$: the annotator preferred model $A$
+  - $Y = 1$: the annotator preferred model $B$
 
-To encode the comparison, P2L uses a **model vector** $X \in \\{-1, 0, +1\\}^M$ where:
+To encode which two models were compared (and in what order), P2L constructs a **two-hot vector** $X \in \\{-1, 0, +1\\}^M$, where:
 
-- `+1`: The preferred model in the pair  
-- `-1`: The non-preferred model  
-- `0`: All other models not involved in the comparison
+- $X_A = -1$: indicates that model $A$ appears in the **first** position
+- $X_B = +1$: indicates that model $B$ appears in the **second** position
+- All other entries are zero
 
-The prompt $Z$ is passed through a frozen LLM encoder (such as **Qwen2.5-1.5B**) with **LoRA fine-tuning**. A lightweight preference head predicts the **preference probability**:
+This encoding captures the **identity and order** of the models being compared. It does **not** reflect the outcome — that’s stored separately in the label $Y$.
+
+The goal of P2L is to learn a scoring function $\theta: \mathcal{Z} \rightarrow \mathbb{R}^M$ that maps a given prompt $Z$ to a **vector of scores** over all models. These scores reflect how well each model is expected to perform on that specific prompt.
+
+P2L then predicts the probability that model $B$ is preferred over model $A$ as:
 
 $$
-\hat{y} = \sigma \left( X^\top \hat{\theta}(Z) \right)
+\hat{y} = \sigma\left( X^\top \theta(Z) \right)
 $$
 
-Only the preference head is trained — the underlying LLM remains untouched. This setup ensures efficiency and modularity.
+where $\sigma$ is the sigmoid function. The higher the value, the more likely model $B$ is to win.
 
 
-## From Preferences to Predictions: Training the P2L
+##  From Preferences to Predictions: Training the P2L Model
 
-To train the model, P2L minimizes a standard **binary cross-entropy loss**:
+To learn these prompt-specific preferences, P2L minimizes the standard **binary cross-entropy loss**:
 
 $$
 \mathcal{L} = - y \log(\hat{y}) - (1 - y) \log(1 - \hat{y})
 $$
 
-After training, the model can take **any new prompt** and **predict the win probabilities** between all pairs of models:
+In practice:
+
+- The prompt $Z$ is first encoded using a **frozen LLM** (such as Qwen2.5-1.5B)
+- A lightweight **preference head** is trained on top of this to output the score vector \( \theta(Z) \in \mathbb{R}^M \)
+
+Only the head is trained — the underlying LLM remains fixed, which ensures efficiency and modularity.
+
+After training, the model can take any new prompt \( Z \) and compute pairwise win probabilities:
 
 $$
-P_{i > j}(Z) = \Pr(\text{Model } i \text{ is preferred over } j \mid Z)
+P_{i > j}(Z) = \Pr(\text{Model } i \text{ is preferred over model } j \mid Z)
 $$
 
-This results in a **pairwise win matrix** for the prompt — a fine-grained view of which models are more suitable, **conditioned on the prompt itself**.
-
+This yields a **pairwise win matrix**, giving a detailed and dynamic picture of model performance — not in general, but **conditioned on the prompt itself**.
 
 ## Making the Best Call: How to Route Intelligently
 
