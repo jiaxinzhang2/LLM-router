@@ -24,7 +24,7 @@ Over time, this approach has scaled remarkably well:
 - 2.8+ million pairwise comparisons between model outputs
 - 300,000+ unique prompts  
 - 219+ different models evaluated
-- - Domains ranging from coding and math to storytelling, reasoning, and open-domain chatting  
+- Domains ranging from coding and math to storytelling, reasoning, and open-domain chatting  
 
 This volume of data not only makes Chatbot Arena one of the largest open evaluation datasets for LLMs, but also one of the most aligned with real human preferences.
 
