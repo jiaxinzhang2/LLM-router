@@ -21,8 +21,8 @@ This setup mimics real-world usage: people interacting with different systems, s
 
 Over time, this approach has scaled remarkably well:
 
-- 2.8+ million **pairwise comparisons** between model outputs
-- 300,000+ unique **prompts**  
+- 2.8+ million pairwise comparisons between model outputs
+- 300,000+ unique prompts  
 - 219+ different models evaluated
 - - Domains ranging from coding and math to storytelling, reasoning, and open-domain chatting  
 
@@ -50,21 +50,21 @@ This is a major advantage over systems like Elo rating, which assume symmetric a
 
 ## Moving Beyond Global Rankings: Why We Need P2L
 
-Global leaderboards are useful — they give us a big-picture view of which LLMs are generally preferred. But they miss a crucial point: **not all prompts are created equal**, and **not all users care about the same things**.
+Global leaderboards are useful — they give us a big-picture view of which LLMs are generally preferred. But they miss a crucial point: not all prompts are created equal, and not all users care about the same things.
 
 A model that writes brilliant fiction might struggle with math. Another might offer sharp technical explanations but sound too dry for casual conversation. Even among users, preferences vary — some value creativity, others prioritize clarity or structure.
 
-Imagine two people interacting with the same LLM interface: one is a developer looking for precise bug explanations; the other wants a whimsical bedtime story. Clearly, they need very different things from the system. A single global ranking won't help decide which model to use — what matters is **which model performs best for a given prompt**.
+Imagine two people interacting with the same LLM interface: one is a developer looking for precise bug explanations; the other wants a whimsical bedtime story. Clearly, they need very different things from the system. A single global ranking won't help decide which model to use — what matters is which model performs best for a given prompt.
 
 That’s where **Prompt-to-Leaderboard (P2L)** comes in.
 
-P2L learns from Arena’s large-scale human preference data to route each prompt to the model that’s historically performed best on similar tasks. It doesn’t try to find one model to rule them all. Instead, it builds a **context-aware, task-sensitive routing system** that’s personalized and adaptive.
+P2L learns from Arena’s large-scale human preference data to route each prompt to the model that’s historically performed best on similar tasks. It doesn’t try to find one model to rule them all. Instead, it builds a context-aware, task-sensitive routing system that’s personalized and adaptive.
 
 It’s a simple but powerful shift:  
 From “Which model is best overall?”  
-To “Which model is best **for this prompt**?”
+To “Which model is best for this prompt?”
 
-By moving beyond static rankings to **dynamic, real-time routing**, P2L makes LLM evaluation and deployment more efficient, more human-aligned — and more useful in practice.
+By moving beyond static rankings to dynamic, real-time routing, P2L makes LLM evaluation and deployment more efficient, more human-aligned — and more useful in practice.
 
 ## How It Works: A Peek into P2L’s Architecture
 
@@ -79,15 +79,15 @@ Each data point in Arena dataset contains:
   - $Y = 0$: the annotator preferred model $A$
   - $Y = 1$: the annotator preferred model $B$
 
-To encode which two models were compared (and in what order), P2L constructs a **two-hot vector** $X \in \\{-1, 0, +1\\}^M$, where:
+To encode which two models were compared (and in what order), P2L constructs a two-hot vector $X \in \\{-1, 0, +1\\}^M$, where:
 
-- $X_A = -1$: indicates that model $A$ appears in the **first** position
-- $X_B = +1$: indicates that model $B$ appears in the **second** position
+- $X_A = -1$: indicates that model $A$ appears in the first position
+- $X_B = +1$: indicates that model $B$ appears in the second position
 - All other entries are zero
 
-This encoding captures the **identity and order** of the models being compared. It does **not** reflect the outcome — that’s stored separately in the label $Y$.
+This encoding captures the identity and order of the models being compared. It does not reflect the outcome — that’s stored separately in the label $Y$.
 
-The goal of P2L is to learn a scoring function $\theta: \mathcal{Z} \rightarrow \mathbb{R}^M$ that maps a given prompt $Z$ to a **vector of scores** over all models. These scores reflect how well each model is expected to perform on that specific prompt.
+The goal of P2L is to learn a scoring function $\theta: \mathcal{Z} \rightarrow \mathbb{R}^M$ that maps a given prompt $Z$ to a vector of scores over all models. These scores reflect how well each model is expected to perform on that specific prompt.
 
 P2L then predicts the probability that model $B$ is preferred over model $A$ as:
 
@@ -120,14 +120,14 @@ $$
 P_{i > j}(Z) = \Pr(\text{Model } i \text{ is preferred over model } j \mid Z)
 $$
 
-This yields a **pairwise win matrix**, giving a detailed and dynamic picture of model performance — not in general, but **conditioned on the prompt itself**.
+This yields a **pairwise win matrix**, giving a detailed and dynamic picture of model performance — not in general, but conditioned on the prompt itself.
 
 ## Making the Best Call: How to Route Intelligently
 
 In practice, intelligent routing must account for both model performance and cost.
 
-P2L formulates an **optimization problem**:  
-Find a distribution $\pi^{\ast}$ over all models that **maximizes expected reward**, subject to a total cost constraint.
+P2L formulates an optimization problem:  
+Find a distribution $\pi^{\ast}$ over all models that maximizes expected reward, subject to a total cost constraint.
 
 Formally:
 
