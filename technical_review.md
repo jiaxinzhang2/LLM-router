@@ -109,7 +109,7 @@ $$
 In practice:
 
 - The prompt $Z$ is first encoded using a **frozen LLM** (such as Qwen2.5-1.5B), extracting the CLS embedding (a vector of dimension `hidden_size`).
-- A lightweight **preference head** is trained on top of this embedding to output the score vector $\theta(Z) \in \mathbb{R}^{M}$ , where $M$ is the number of candidate responses.
+- A lightweight linear **preference head** is trained on top of this embedding to output the score vector $\theta(Z) \in \mathbb{R}^{M}$ , where $M$ is the number of candidate responses.
 
 Only the linear head is trained—the underlying LLM remains fixed, ensuring efficiency and modularity.
 
