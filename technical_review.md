@@ -79,7 +79,7 @@ Each data point in Arena dataset contains:
   - $Y = 0$: the annotator preferred model $A$
   - $Y = 1$: the annotator preferred model $B$
 
-To encode which two models were compared (and in what order), P2L constructs a two-hot vector $X \in \\{-1, 0, +1\\}^M$, where:
+To encode which two models were compared (and in what order), P2L constructs a **two-hot vector** $X \in \\{-1, 0, +1\\}^M$, where:
 
 - $X_A = -1$: indicates that model $A$ appears in the first position
 - $X_B = +1$: indicates that model $B$ appears in the second position
