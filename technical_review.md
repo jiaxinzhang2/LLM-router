@@ -21,10 +21,10 @@ This setup mimics real-world usage: people interacting with different systems, s
 
 Over time, this approach has scaled remarkably well:
 
-- 2.8+ million head-to-head votes  
-- 300,000+ unique prompts  
-- 219+ different models evaluated  
-- Domains ranging from code and math to storytelling, reasoning, and chat
+- 2.8+ million **pairwise comparisons** between model outputs
+- 300,000+ unique **prompts**  
+- 219+ different models evaluated
+- - Domains ranging from coding and math to storytelling, reasoning, and open-domain chatting  
 
 This volume of data not only makes Chatbot Arena one of the largest open evaluation datasets for LLMs, but also one of the most aligned with real human preferences.
 
@@ -73,7 +73,7 @@ At the heart of **Prompt-to-Leaderboard (P2L)** is a simple but powerful idea: i
 Each data point in Arena dataset contains:
 
 - A **natural language prompt**  $Z$
-- Two models: model $A$ and model $B$, selected from a pool of \( M \) models and presented in a fixed order
+- Two models: model $A$ and model $B$, selected from a pool of $M$ models and presented in a fixed order
 - Their respective responses to the prompt
 - A **binary label** $Y \in \\{0, 1\\}$, where:
   - $Y = 0$: the annotator preferred model $A$
@@ -108,12 +108,13 @@ $$
 
 In practice:
 
-- The prompt $Z$ is first encoded using a **frozen LLM** (such as Qwen2.5-1.5B)
-- A lightweight **preference head** is trained on top of this to output the score vector \( \theta(Z) \in \mathbb{R}^M \)
+- The prompt $Z$ is first encoded using a **frozen LLM** (such as Qwen2.5-1.5B), extracting the CLS embedding (a vector of dimension `hidden_size`).
+- A lightweight **preference head** is trained on top of this embedding to output the score vector $\theta(Z) \in \mathbb{R}^{M}$ , where $M$ is the number of candidate responses.
 
-Only the head is trained — the underlying LLM remains fixed, which ensures efficiency and modularity.
+Only the linear head is trained—the underlying LLM remains fixed, ensuring efficiency and modularity.
 
-After training, the model can take any new prompt \( Z \) and compute pairwise win probabilities:
+
+After training, the model can take any new prompt $Z$ and compute pairwise win probabilities:
 
 $$
 P_{i > j}(Z) = \Pr(\text{Model } i \text{ is preferred over model } j \mid Z)
