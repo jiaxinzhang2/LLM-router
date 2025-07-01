@@ -68,24 +68,16 @@ By moving beyond static rankings to dynamic, real-time routing, P2L makes LLM ev
 
 ## How It Works: A Peek into P2L’s Architecture
 
-At the heart of **Prompt-to-Leaderboard (P2L)** is a simple but powerful idea: instead of assigning global rankings to language models, we learn **prompt-specific preferences** based on large-scale human feedback from Arena dataset.
+At the heart of Prompt-to-Leaderboard (P2L) is a simple but powerful idea: instead of assigning global rankings to language models, we learn prompt-specific preferences based on large-scale human feedback from Arena dataset.
 
 Each data point in Arena dataset contains:
 
-- A **natural language prompt**  $Z$
-- Two models: model $A$ and model $B$, selected from a pool of $M$ models and presented in a fixed order
-- Their respective responses to the prompt
-- A **binary label** $Y \in \\{0, 1\\}$, where:
-  - $Y = 0$: the annotator preferred model $A$
+- A natural language prompt  $Z$  
+- A two-hot comparison encoding vector $X \in \\{-1, 0, +1\\}^M$, where $X_A = -1$, $X_B = +1$, and all other entries are zero, encoding which two models ($A$ and $B$) were compared  
+- Their respective responses to the prompt  
+- A binary label $Y \in \{0, 1\}$, where:  
+  - $Y = 0$: the annotator preferred model $A$  
   - $Y = 1$: the annotator preferred model $B$
-
-To encode which two models were compared (and in what order), P2L constructs a **two-hot vector** $X \in \\{-1, 0, +1\\}^M$, where:
-
-- $X_A = -1$: indicates that model $A$ appears in the first position
-- $X_B = +1$: indicates that model $B$ appears in the second position
-- All other entries are zero
-
-This encoding captures the identity and order of the models being compared. It does not reflect the outcome — that’s stored separately in the label $Y$.
 
 The goal of P2L is to learn a scoring function $\theta: \mathcal{Z} \rightarrow \mathbb{R}^M$ that maps a given prompt $Z$ to a vector of scores over all models. These scores reflect how well each model is expected to perform on that specific prompt.
 
@@ -100,7 +92,7 @@ where $\sigma$ is the sigmoid function. The higher the value, the more likely mo
 
 ##  From Preferences to Predictions: Training the P2L Model
 
-To learn these prompt-specific preferences, P2L minimizes the standard **binary cross-entropy loss**:
+To learn these prompt-specific preferences, P2L minimizes the standard binary cross-entropy loss:
 
 $$
 \mathcal{L} = - y \log(\hat{y}) - (1 - y) \log(1 - \hat{y})
@@ -108,8 +100,8 @@ $$
 
 In practice:
 
-- The prompt $Z$ is first encoded using a **frozen LLM** (such as Qwen2.5-1.5B), extracting the CLS embedding (a vector of dimension `hidden_size`).
-- A lightweight linear **preference head** is trained on top of this embedding to output the score vector $\theta(Z) \in \mathbb{R}^{M}$ , where $M$ is the number of candidate responses.
+- The prompt $Z$ is first encoded using a frozen LLM (such as Qwen2.5-1.5B), extracting the CLS embedding (a vector of dimension `hidden_size`).
+- A lightweight linear preference head is trained on top of this embedding to output the score vector $\theta(Z) \in \mathbb{R}^{M}$ , where $M$ is the number of candidate responses.
 
 Only the linear head is trained—the underlying LLM remains fixed, ensuring efficiency and modularity.
 
@@ -120,7 +112,7 @@ $$
 P_{i > j}(Z) = \Pr(\text{Model } i \text{ is preferred over model } j \mid Z)
 $$
 
-This yields a **pairwise win matrix**, giving a detailed and dynamic picture of model performance — not in general, but conditioned on the prompt itself.
+This yields a pairwise win matrix, giving a detailed and dynamic picture of model performance — not in general, but conditioned on the prompt itself.
 
 ## Making the Best Call: How to Route Intelligently
 
@@ -144,7 +136,7 @@ Where:
 - $C$: total budget  
 - $\Delta_M$: the set of valid probability distributions over $M$ models
 
-This lets P2L make **budget-aware routing decisions** — leveraging powerful models when they matter most, and allocating traffic efficiently under resource constraints.
+This lets P2L make budget-aware routing decisions — leveraging powerful models when they matter most, and allocating traffic efficiently under resource constraints.
 
 
 
